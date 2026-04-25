@@ -1,12 +1,20 @@
 {
-  "name": "ai-blog-generator",
+  "name": "ai-realestate-blog",
   "version": "1.0.0",
+  "description": "AI Blog tự động từ batdongsan.com.vn dùng Groq",
+  "scripts": {
+    "dev": "netlify dev",
+    "generate": "node scripts/manualGenerate.js",
+    "build": "echo 'Static site - no build needed'"
+  },
   "dependencies": {
-    "rss-parser": "^3.13.0",
-    "cheerio": "^1.0.0-rc.12",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^3.3.2",
+    "node-html-parser": "^6.1.13"
   },
   "devDependencies": {
-    "netlify-cli": "^14.0.0"
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

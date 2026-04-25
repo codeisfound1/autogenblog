@@ -1,8 +1,23 @@
 [build]
-  command = "npm install"
-  functions = "netlify/functions"
   publish = "src"
+  command = "echo 'Static build complete'"
 
-[[scheduled_functions]]
-  function = "generateBlogPost"
-  cron = "0 0 * * *"
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Access-Control-Allow-Origin = "*"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Scheduled function: tự động chạy mỗi 24h (dùng cron)
+[functions.generateBlogPost]
+  schedule = "@daily"
