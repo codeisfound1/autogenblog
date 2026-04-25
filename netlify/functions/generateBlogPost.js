@@ -8,7 +8,8 @@ const parser = new Parser({
   }
 });
 //const parser = new Parser();
-const RSS_FEED = 'https://vnexpress.net/rss/bat-dong-san.rss';
+//const RSS_FEED = 'https://vnexpress.net/rss/bat-dong-san.rss';
+const RSS_FEED = 'https://dantri.com.vn/rss/bat-dong-san.rss';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = 'mixtral-8x7b-32768'; // Fast & accurate
 
