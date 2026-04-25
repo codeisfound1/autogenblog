@@ -1,317 +1,344 @@
-const fetch = require('node-fetch');
-const cheerio = require('cheerio');
-const fs = require('fs');
-const path = require('path');
- 
-const BLOG_URL = 'https://wiki.batdongsan.com.vn/tin-tuc';
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = 'llama-3.1-8b-instant';
+// netlify/functions/generateBlogPost.js
+// Hỗ trợ cả: scheduled (24h tự động) và manual trigger qua HTTP POST
 
-//import Groq from "groq-sdk";
+const https = require("https");
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
 
-//const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+const SOURCE_URL = "https://wiki.batdongsan.com.vn/tin-tuc";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama3-70b-8192"; // Free tier model
+const POSTS_FILE = path.join(__dirname, "../../src/posts.json");
 
-//const getModels = async () => {
-//  return await groq.models.list();
-//};
+// ─── HELPERS ───────────────────────────────────────────────────────────────
 
-//getModels().then((models) => {
-  // console.log(models);
-//});
-
- 
-// Constants
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // ms
-const MAX_POSTS = 50;
-const TIMEOUT = 10000; // 10 seconds
- 
-// Logger helper
-const logger = {
-  info: (msg, data) => console.log(`[INFO] ${new Date().toISOString()} - ${msg}`, data || ''),
-  error: (msg, err) => console.error(`[ERROR] ${new Date().toISOString()} - ${msg}`, err?.message || err || ''),
-  warn: (msg, data) => console.warn(`[WARN] ${new Date().toISOString()} - ${msg}`, data || ''),
-};
- 
-// Retry helper with exponential backoff
-async function retryAsync(fn, retries = MAX_RETRIES, delay = RETRY_DELAY) {
-  let lastError;
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      if (i < retries - 1) {
-        logger.warn(`Retry attempt ${i + 1}/${retries}`, error.message);
-        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+function fetchUrl(url) {
+  return new Promise((resolve, reject) => {
+    const client = url.startsWith("https") ? https : http;
+    const options = {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
+      },
+    };
+    const req = client.get(url, options, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return fetchUrl(res.headers.location).then(resolve).catch(reject);
       }
-    }
-  }
-  throw lastError;
-}
- 
-// Timeout wrapper
-async function withTimeout(promise, timeoutMs) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
-    ),
-  ]);
-}
- 
-exports.handler = async (event) => {
-  try {
-    logger.info('🚀 Starting blog post generation');
- 
-    // Step 1: Scrape article
-    const articleData = await retryAsync(() => scrapeBlogPost());
-    const { title, link, summary } = articleData;
- 
-    if (!title) {
-      logger.warn('No article found on page');
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'Could not find article on the page' }),
-      };
-    }
- 
-    logger.info(`✅ Found article: "${title}"`);
- 
-    // Step 2: Check duplicates
-    const postsFilePath = path.join(__dirname, '../../src/posts.json');
-    let posts = [];
-    
-    if (fs.existsSync(postsFilePath)) {
-      const fileContent = fs.readFileSync(postsFilePath, 'utf8');
-      posts = JSON.parse(fileContent);
-    }
- 
-    const isDuplicate = posts.some(p => p.title.toLowerCase() === title.toLowerCase());
-    if (isDuplicate) {
-      logger.info('⚠️ Article already exists, skipping');
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          success: false,
-          message: 'Article already exists',
-        }),
-      };
-    }
- 
-    // Step 3: Rewrite content with Groq
-    let rewrittenContent;
-    try {
-      rewrittenContent = await withTimeout(
-        retryAsync(() => callGroqAPI(summary)),
-        TIMEOUT
-      );
-      logger.info('✅ Groq API call succeeded');
-    } catch (error) {
-      logger.error('⚠️ Groq API failed, using original summary', error);
-      rewrittenContent = summary;
-    }
- 
-    // Step 4: Create blog post object
-    const blogPost = {
-      id: Date.now(),
-      title: title.trim(),
-      originalLink: link,
-      originalSummary: summary,
-      rewrittenContent: rewrittenContent,
-      createdAt: new Date().toISOString(),
-      source: 'batdongsan.com.vn',
-      wordCount: rewrittenContent.split(/\s+/).length,
-    };
- 
-    logger.info(`📝 Blog post created: ${blogPost.id}`);
- 
-    // Step 5: Save to posts.json (atomic write)
-    posts.unshift(blogPost);
-    posts = posts.slice(0, MAX_POSTS);
- 
-    // Write atomically (write to temp file first)
-    const tempPath = postsFilePath + '.tmp';
-    fs.writeFileSync(tempPath, JSON.stringify(posts, null, 2));
-    fs.renameSync(tempPath, postsFilePath);
-    
-    logger.info(`💾 Saved to posts.json (total: ${posts.length})`);
- 
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        success: true,
-        post: blogPost,
-        totalPosts: posts.length,
-      }),
-    };
-  } catch (error) {
-    logger.error('❌ Fatal error in handler', error);
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        success: false,
-        error: error.message,
-      }),
-    };
-  }
-};
- 
-/**
- * Scrape article from BatDongSan Wiki
- * Tries multiple selectors to handle website layout changes
- */
-async function scrapeBlogPost() {
-  const response = await withTimeout(
-    fetch(BLOG_URL, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'vi-VN,vi;q=0.9',
-      },
-      timeout: TIMEOUT,
-    }),
-    TIMEOUT
-  );
- 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
- 
-  const html = await response.text();
-  const $ = cheerio.load(html);
- 
-  // Try multiple selectors for robustness
-  const selectors = [
-    'div.HomeHighlights_articleRightContent__JKbTW',
-    'div.article-right-content',
-    'article.main-article',
-    'div[class*="article"][class*="content"]',
-    'div.news-item:first',
-  ];
- 
-  let articleDiv;
-  for (const selector of selectors) {
-    articleDiv = $(selector).first();
-    if (articleDiv.length) {
-      logger.info(`✓ Found article with selector: ${selector}`);
-      break;
-    }
-  }
- 
-  if (!articleDiv.length) {
-    throw new Error('Article container not found - all selectors failed');
-  }
- 
-  // Extract title (try multiple strategies)
-  let title = articleDiv.find('h2, h3').first().text().trim();
-  if (!title) {
-    title = articleDiv.find('a').first().text().trim();
-  }
- 
-  if (!title) {
-    throw new Error('Could not extract title');
-  }
- 
-  // Extract link
-  let link = articleDiv.find('a').first().attr('href') || '';
-  if (link.startsWith('/')) {
-    link = 'https://wiki.batdongsan.com.vn' + link;
-  }
- 
-  // Extract summary
-  let summary = articleDiv.find('p, span').first().text().trim();
-  if (!summary) {
-    summary = title; // Fallback
-  }
- 
-  // Clean up text
-  title = title.replace(/\s+/g, ' ').trim();
-  summary = summary.replace(/\s+/g, ' ').trim();
- 
-  logger.info('📰 Scraped data:', {
-    title: title.substring(0, 50) + '...',
-    link: link.substring(0, 50) + '...',
-    summaryLength: summary.length,
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => resolve(data));
+    });
+    req.on("error", reject);
+    req.setTimeout(15000, () => {
+      req.destroy();
+      reject(new Error("Request timeout"));
+    });
   });
- 
+}
+
+function postJson(url, data, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(data);
+    const urlObj = new URL(url);
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+        ...headers,
+      },
+    };
+    const req = https.request(options, (res) => {
+      let d = "";
+      res.on("data", (c) => (d += c));
+      res.on("end", () => {
+        try { resolve(JSON.parse(d)); }
+        catch (e) { reject(new Error("Invalid JSON: " + d.slice(0, 200))); }
+      });
+    });
+    req.on("error", reject);
+    req.setTimeout(30000, () => { req.destroy(); reject(new Error("Groq timeout")); });
+    req.write(body);
+    req.end();
+  });
+}
+
+// ─── STEP 1: CRAWL DANH SÁCH BÀI VIẾT ────────────────────────────────────
+
+async function crawlArticleList() {
+  console.log("🔍 Crawling:", SOURCE_URL);
+  const html = await fetchUrl(SOURCE_URL);
+
+  // Parse thủ công - tìm các thẻ <a> chứa bài viết
+  const articles = [];
+
+  // Regex tìm link bài viết trong danh sách tin tức
+  const linkPattern = /href="(https?:\/\/wiki\.batdongsan\.com\.vn\/tin-tuc\/[^"]+)"/g;
+  const titlePattern = /<h[2-4][^>]*>([^<]{10,200})<\/h[2-4]>/g;
+
+  let match;
+  const links = new Set();
+
+  while ((match = linkPattern.exec(html)) !== null) {
+    const url = match[1];
+    if (!links.has(url) && !url.endsWith("/tin-tuc") && !url.includes("?")) {
+      links.add(url);
+    }
+  }
+
+  // Cũng thử tìm pattern phổ biến của các CMS
+  const altPattern = /href="(\/tin-tuc\/[^"?#]+)"/g;
+  while ((match = altPattern.exec(html)) !== null) {
+    const url = "https://wiki.batdongsan.com.vn" + match[1];
+    if (!links.has(url)) links.add(url);
+  }
+
+  // Lấy tối đa 10 link đầu tiên
+  const linkArray = Array.from(links).slice(0, 10);
+  console.log(`📋 Tìm thấy ${linkArray.length} bài viết`);
+
+  return linkArray.map((url) => ({ url, title: "" }));
+}
+
+// ─── STEP 2: CRAWL NỘI DUNG BÀI VIẾT ────────────────────────────────────
+
+async function crawlArticleContent(url) {
+  console.log("📄 Crawling article:", url);
+  const html = await fetchUrl(url);
+
+  // Extract title
+  let title = "";
+  const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+  if (titleMatch) title = titleMatch[1].replace(/\s*[-|]\s*.*$/, "").trim();
+
+  const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+  if (h1Match) title = h1Match[1].trim();
+
+  // Extract meta description
+  let description = "";
+  const descMatch = html.match(/<meta[^>]+name="description"[^>]+content="([^"]+)"/i)
+    || html.match(/<meta[^>]+content="([^"]+)"[^>]+name="description"/i);
+  if (descMatch) description = descMatch[1];
+
+  // Extract main content - loại bỏ HTML tags
+  let content = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+    .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
+    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+    .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Lấy đoạn content có liên quan (bỏ phần header/footer lặp lại)
+  // Tìm đoạn text dài nhất có ý nghĩa
+  const sentences = content.split(/[.!?]\s+/).filter((s) => s.length > 20);
+  const relevantContent = sentences.slice(0, 30).join(". ");
+
   return {
-    title: title || 'No title found',
-    link: link,
-    summary: summary || title,
+    url,
+    title: title || "Bài viết bất động sản",
+    description,
+    content: relevantContent.slice(0, 3000), // Giới hạn 3000 chars để fit Groq context
   };
 }
- 
-/**
- * Call Groq API to rewrite content
- * @param {string} text - Original text to rewrite
- * @returns {Promise<string>} Rewritten content
- */
-async function callGroqAPI(text) {
-  if (!GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY environment variable is not set');
-  }
- 
-  // Truncate text if too long
-  const maxInputLength = 2000;
-  const truncatedText = text.substring(0, maxInputLength);
- 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+
+// ─── STEP 3: GENERATE BLOG POST VỚI GROQ ─────────────────────────────────
+
+async function generateWithGroq(articleData, groqApiKey) {
+  console.log("🤖 Generating with Groq:", articleData.title);
+
+  const prompt = `Bạn là chuyên gia bất động sản Việt Nam. Dựa trên bài viết nguồn dưới đây, hãy viết một bài blog chuyên sâu, hấp dẫn bằng tiếng Việt.
+
+THÔNG TIN NGUỒN:
+Tiêu đề: ${articleData.title}
+Mô tả: ${articleData.description}
+Nội dung: ${articleData.content}
+URL gốc: ${articleData.url}
+
+YÊU CẦU BÀI BLOG:
+1. Viết lại hoàn toàn, KHÔNG sao chép nguyên văn
+2. Thêm phân tích chuyên sâu, góc nhìn mới
+3. Độ dài: 600-900 từ
+4. Cấu trúc: Tiêu đề hấp dẫn, mở đầu thu hút, 3-4 phần chính, kết luận actionable
+5. Tone: Chuyên nghiệp nhưng dễ hiểu, có tính thực tiễn cao
+6. Thêm lời khuyên cho người đọc
+
+TRẢ VỀ JSON với format CHÍNH XÁC sau (không có text ngoài JSON):
+{
+  "title": "Tiêu đề bài blog hấp dẫn",
+  "summary": "Tóm tắt 1-2 câu",
+  "tags": ["tag1", "tag2", "tag3"],
+  "content": "Nội dung đầy đủ dạng HTML với các thẻ <h2>, <p>, <ul>, <li>",
+  "readTime": 5
+}`;
+
+  const response = await postJson(
+    GROQ_API_URL,
+    {
       model: GROQ_MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: `Bạn là một nhà viết blog chuyên nghiệp. 
-Viết lại nội dung bài viết một cách sáng tạo, hấp dẫn và chuyên nghiệp.
-- Dài 150-200 từ
-- Bằng tiếng Việt
-- Giữ lại thông tin chính yếu
-- Tăng tính engaging
-- Không có dấu ngoặc kép
-- Không lặp lại thông tin`,
-        },
-        {
-          role: 'user',
-          content: `Viết lại nội dung sau một cách chuyên nghiệp:\n\n${truncatedText}`,
-        },
-      ],
-      max_tokens: 300,
+      messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      top_p: 0.9,
-    }),
-    timeout: TIMEOUT,
-  });
- 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const errorMsg = errorData.error?.message || `HTTP ${response.status}`;
-    throw new Error(`Groq API error: ${errorMsg}`);
+      max_tokens: 2048,
+    },
+    {
+      Authorization: `Bearer ${groqApiKey}`,
+    }
+  );
+
+  if (response.error) {
+    throw new Error("Groq API error: " + JSON.stringify(response.error));
   }
- 
-  const result = await response.json();
-  
-  if (!result.choices || !result.choices[0]?.message?.content) {
-    throw new Error('Invalid response format from Groq API');
-  }
- 
-  const rewrittenContent = result.choices[0].message.content.trim();
-  
-  logger.info('📄 Groq rewrite stats:', {
-    inputLength: truncatedText.length,
-    outputLength: rewrittenContent.length,
-    wordCount: rewrittenContent.split(/\s+/).length,
-  });
- 
-  return rewrittenContent;
+
+  const rawText = response.choices?.[0]?.message?.content || "";
+
+  // Parse JSON từ response
+  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("Không tìm thấy JSON trong response Groq");
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  return parsed;
 }
+
+// ─── STEP 4: LƯU BÀI VIẾT ─────────────────────────────────────────────────
+
+function loadPosts() {
+  try {
+    if (fs.existsSync(POSTS_FILE)) {
+      return JSON.parse(fs.readFileSync(POSTS_FILE, "utf-8"));
+    }
+  } catch (e) {
+    console.error("Error loading posts:", e.message);
+  }
+  return { posts: [], publishedUrls: [] };
+}
+
+function savePosts(data) {
+  fs.writeFileSync(POSTS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  console.log(`💾 Đã lưu ${data.posts.length} bài viết`);
+}
+
+function isAlreadyPublished(url, data) {
+  return data.publishedUrls.includes(url);
+}
+
+// ─── MAIN HANDLER ──────────────────────────────────────────────────────────
+
+async function runGeneration(groqApiKey) {
+  const data = loadPosts();
+  console.log(`📚 Hiện có ${data.posts.length} bài, ${data.publishedUrls.length} URL đã dùng`);
+
+  // Crawl danh sách bài viết mới
+  const articleList = await crawlArticleList();
+
+  // Tìm bài chưa đăng
+  const newArticles = articleList.filter((a) => !isAlreadyPublished(a.url, data));
+
+  if (newArticles.length === 0) {
+    return { success: true, message: "Không có bài viết mới để đăng", generated: 0 };
+  }
+
+  console.log(`✨ ${newArticles.length} bài mới chưa đăng, xử lý bài đầu tiên...`);
+
+  // Lấy bài đầu tiên chưa đăng
+  const target = newArticles[0];
+
+  // Crawl nội dung
+  const articleContent = await crawlArticleContent(target.url);
+
+  if (!articleContent.content || articleContent.content.length < 100) {
+    // Đánh dấu đã xử lý để skip lần sau
+    data.publishedUrls.push(target.url);
+    savePosts(data);
+    return { success: false, message: "Không đọc được nội dung bài viết: " + target.url };
+  }
+
+  // Generate với Groq
+  const generated = await generateWithGroq(articleContent, groqApiKey);
+
+  // Tạo post object
+  const newPost = {
+    id: Date.now().toString(),
+    title: generated.title || articleContent.title,
+    summary: generated.summary || "",
+    content: generated.content || "",
+    tags: generated.tags || ["bất động sản"],
+    readTime: generated.readTime || 5,
+    sourceUrl: target.url,
+    sourceTitle: articleContent.title,
+    publishedAt: new Date().toISOString(),
+    slug: slugify(generated.title || articleContent.title),
+  };
+
+  // Lưu
+  data.posts.unshift(newPost); // Mới nhất lên đầu
+  data.publishedUrls.push(target.url);
+  savePosts(data);
+
+  console.log(`✅ Đã đăng: "${newPost.title}"`);
+  return { success: true, message: "Đã tạo bài thành công", post: newPost, generated: 1 };
+}
+
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 80);
+}
+
+// ─── NETLIFY HANDLER ───────────────────────────────────────────────────────
+
+exports.handler = async (event, context) => {
+  const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+  if (!GROQ_API_KEY) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "GROQ_API_KEY chưa được cấu hình trong Netlify Environment Variables" }),
+    };
+  }
+
+  // Xác thực cho manual trigger (HTTP POST)
+  if (event.httpMethod === "POST") {
+    const MANUAL_SECRET = process.env.MANUAL_SECRET || "batdongsan-secret";
+    let body = {};
+    try { body = JSON.parse(event.body || "{}"); } catch (_) {}
+
+    if (body.secret !== MANUAL_SECRET) {
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ error: "Unauthorized. Cần truyền secret đúng." }),
+      };
+    }
+  }
+
+  try {
+    const result = await runGeneration(GROQ_API_KEY);
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(result),
+    };
+  } catch (err) {
+    console.error("❌ Error:", err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
+  }
+};
