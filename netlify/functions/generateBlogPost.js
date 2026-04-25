@@ -2,8 +2,12 @@ const Parser = require('rss-parser');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
-
-const parser = new Parser();
+const parser = new Parser({
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  }
+});
+//const parser = new Parser();
 const RSS_FEED = 'https://vnexpress.net/rss/bat-dong-san.rss';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = 'mixtral-8x7b-32768'; // Fast & accurate
