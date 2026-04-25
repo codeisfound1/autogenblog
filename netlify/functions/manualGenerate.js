@@ -3,7 +3,11 @@
 // Yêu cầu: GROQ_API_KEY trong .env hoặc environment
 
 const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, "../.env") });
+//require("dotenv").config({ path: path.join(__dirname, "../.env") });
+// only load .env locally for development
+if (process.env.NETLIFY === undefined) {
+  require("dotenv").config({ path: path.join(__dirname, "../.env") });
+}
 
 // Load function handler
 //const { handler } = require("../netlify/functions/generateBlogPost");
