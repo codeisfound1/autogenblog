@@ -6,7 +6,8 @@ const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
 // Load function handler
-const { handler } = require("../netlify/functions/generateBlogPost");
+//const { handler } = require("../netlify/functions/generateBlogPost");
+const { handler } = require("./generateBlogPost");
 
 async function main() {
   const GROQ_API_KEY = process.env.GROQ_API_KEY;
