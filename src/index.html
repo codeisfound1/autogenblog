@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Blog - Real Estate News</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      background: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      text-align: center;
+      color: white;
+      margin-bottom: 20px;
+      font-size: 0.9em;
+      min-height: 20px;
+    }
+
+    .posts-container {
+      display: grid;
+      gap: 20px;
+    }
+
+    .post-card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease;
+    }
+
+    .post-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .post-card h2 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 1.5em;
+      line-height: 1.3;
+    }
+
+    .post-card .meta {
+      color: #999;
+      font-size: 0.85em;
+      margin-bottom: 15px;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .post-card .content {
+      color: #333;
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+
+    .post-card a {
+      display: inline-block;
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    .post-card a:hover {
+      text-decoration: underline;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: white;
+      padding: 40px 20px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error {
+      background: #ff6b6b;
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🏠 Real Estate Blog</h1>
+      <p>AI-powered summaries from VNExpress</p>
+    </header>
+
+    <div class="controls">
+      <button id="generateBtn" onclick="generatePost()">Generate New Post</button>
+      <button id="refreshBtn" onclick="loadPosts()">Refresh Posts</button>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div id="errorContainer"></div>
+
+    <div class="posts-container" id="postsContainer">
+      <div class="empty-state">Loading posts...</div>
+    </div>
+  </div>
+
+  <script>
+    // Generate a new post (button click)
+    async function generatePost() {
+      const btn = document.getElementById('generateBtn');
+      const status = document.getElementById('status');
+      const errorContainer = document.getElementById('errorContainer');
+
+      btn.disabled = true;
+      status.innerHTML = '<div class="spinner"></div> Generating post...';
+      errorContainer.innerHTML = '';
+
+      try {
+        const response = await fetch('/.netlify/functions/generateBlogPost', {
+          method: 'POST',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        status.textContent = '✅ Post generated successfully!';
+        
+        // Reload posts after generation
+        setTimeout(() => loadPosts(), 1000);
+      } catch (error) {
+        errorContainer.innerHTML = `<div class="error">❌ ${error.message}</div>`;
+        status.textContent = '';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Load and display all posts
+    async function loadPosts() {
+      const container = document.getElementById('postsContainer');
+
+      try {
+        const response = await fetch('/posts.json');
+        const posts = await response.json();
+
+        if (!posts || posts.length === 0) {
+          container.innerHTML = '<div class="empty-state">No posts yet. Click "Generate New Post" to start!</div>';
+          return;
+        }
+
+        container.innerHTML = posts.map(post => `
+          <div class="post-card">
+            <h2>${post.title}</h2>
+            <div class="meta">
+              <span>📅 ${new Date(post.createdAt).toLocaleDateString()}</span>
+              <span>📰 ${post.source}</span>
+            </div>
+            <div class="content">${post.rewrittenContent}</div>
+            <a href="${post.originalLink}" target="_blank">Read original article →</a>
+          </div>
+        `).join('');
+      } catch (error) {
+        container.innerHTML = '<div class="empty-state">Could not load posts.</div>';
+      }
+    }
+
+    // Load posts on page load
+    loadPosts();
+  </script>
+</body>
+</html>
