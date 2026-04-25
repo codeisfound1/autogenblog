@@ -158,37 +158,33 @@ async function crawlArticleContent(url) {
 async function generateWithGroq(articleData, groqApiKey) {
   console.log("🤖 Generating with Groq:", articleData.title);
 
-  const prompt = `Bạn là chuyên gia bất động sản Việt Nam. Dựa trên bài viết nguồn dưới đây, hãy viết một bài blog chuyên sâu, hấp dẫn bằng tiếng Việt.
+  const systemPrompt = `Bạn là chuyên gia phân tích bất động sản Việt Nam. Nhiệm vụ của bạn là nhận thông tin bài viết gốc và TRẢ VỀ DUY NHẤT một JSON object hợp lệ, không có bất kỳ text nào khác trước hoặc sau JSON. Không dùng markdown, không dùng code block, không giải thích.`;
+
+  const userPrompt = `Dựa trên thông tin bài viết sau, hãy viết một bài blog chuyên sâu bằng tiếng Việt và trả về JSON.
 
 THÔNG TIN NGUỒN:
 Tiêu đề: ${articleData.title}
 Mô tả: ${articleData.description}
-Nội dung: ${articleData.content}
-URL gốc: ${articleData.url}
+Nội dung tóm tắt: ${articleData.content}
 
-YÊU CẦU BÀI BLOG:
-1. Viết lại hoàn toàn, KHÔNG sao chép nguyên văn
-2. Thêm phân tích chuyên sâu, góc nhìn mới
-3. Độ dài: 600-900 từ
-4. Cấu trúc: Tiêu đề hấp dẫn, mở đầu thu hút, 3-4 phần chính, kết luận actionable
-5. Tone: Chuyên nghiệp nhưng dễ hiểu, có tính thực tiễn cao
-6. Thêm lời khuyên cho người đọc
+YÊU CẦU:
+- Viết lại hoàn toàn, không sao chép nguyên văn
+- Thêm phân tích và góc nhìn chuyên sâu
+- Độ dài 500-700 từ
+- Tone chuyên nghiệp, thực tiễn
 
-TRẢ VỀ JSON với format CHÍNH XÁC sau (không có text ngoài JSON):
-{
-  "title": "Tiêu đề bài blog hấp dẫn",
-  "summary": "Tóm tắt 1-2 câu",
-  "tags": ["tag1", "tag2", "tag3"],
-  "content": "Nội dung đầy đủ dạng HTML với các thẻ <h2>, <p>, <ul>, <li>",
-  "readTime": 5
-}`;
+QUAN TRỌNG: Chỉ trả về JSON object thuần túy theo đúng format sau, KHÔNG có text nào khác:
+{"title":"Tiêu đề bài blog","summary":"Tóm tắt ngắn 1-2 câu","tags":["tag1","tag2","tag3"],"content":"<p>Đoạn mở đầu...</p><h2>Tiêu đề phần 1</h2><p>Nội dung...</p><h2>Tiêu đề phần 2</h2><p>Nội dung...</p><h2>Kết luận</h2><p>Nội dung kết luận và lời khuyên...</p>","readTime":5}`;
 
   const response = await postJson(
     GROQ_API_URL,
     {
       model: GROQ_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
       max_tokens: 2048,
     },
     {
@@ -200,14 +196,87 @@ TRẢ VỀ JSON với format CHÍNH XÁC sau (không có text ngoài JSON):
     throw new Error("Groq API error: " + JSON.stringify(response.error));
   }
 
-  const rawText = response.choices?.[0]?.message?.content || "";
+  const rawText = (response.choices?.[0]?.message?.content || "").trim();
+  console.log("📥 Groq raw response (200 chars):", rawText.slice(0, 200));
 
-  // Parse JSON từ response
-  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Không tìm thấy JSON trong response Groq");
+  return parseGroqResponse(rawText, articleData);
+}
 
-  const parsed = JSON.parse(jsonMatch[0]);
-  return parsed;
+// ─── JSON PARSER ROBUST ────────────────────────────────────────────────────
+
+function parseGroqResponse(rawText, articleData) {
+  // Thử 1: Parse thẳng nếu là JSON thuần
+  try {
+    const parsed = JSON.parse(rawText);
+    if (parsed && parsed.title) return parsed;
+  } catch (_) {}
+
+  // Thử 2: Xóa markdown code block ```json ... ```
+  const stripped = rawText
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+  try {
+    const parsed = JSON.parse(stripped);
+    if (parsed && parsed.title) return parsed;
+  } catch (_) {}
+
+  // Thử 3: Tìm JSON object đầu tiên trong text (dùng bộ đếm ngoặc)
+  const start = rawText.indexOf("{");
+  if (start !== -1) {
+    let depth = 0;
+    let end = -1;
+    let inString = false;
+    let escape = false;
+    for (let i = start; i < rawText.length; i++) {
+      const ch = rawText[i];
+      if (escape) { escape = false; continue; }
+      if (ch === "\\") { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) { end = i; break; }
+      }
+    }
+    if (end !== -1) {
+      try {
+        const parsed = JSON.parse(rawText.slice(start, end + 1));
+        if (parsed && parsed.title) return parsed;
+      } catch (_) {}
+    }
+  }
+
+  // Thử 4: Extract từng field bằng regex (fallback cuối)
+  console.warn("⚠️ JSON parse thất bại, dùng regex fallback");
+  const extractField = (key) => {
+    const m = rawText.match(new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`, "i"));
+    return m ? m[1].replace(/\\n/g, "\n").replace(/\\"/g, '"') : null;
+  };
+  const extractArray = (key) => {
+    const m = rawText.match(new RegExp(`"${key}"\\s*:\\s*\\[([^\\]]+)\\]`, "i"));
+    if (!m) return [];
+    return m[1].match(/"([^"]+)"/g)?.map((s) => s.replace(/"/g, "")) || [];
+  };
+  const extractNum = (key) => {
+    const m = rawText.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`, "i"));
+    return m ? parseInt(m[1]) : 5;
+  };
+
+  const title = extractField("title") || articleData.title;
+  const summary = extractField("summary") || articleData.description || "";
+  const content = extractField("content") || `<p>${rawText.slice(0, 500)}</p>`;
+  const tags = extractArray("tags").length ? extractArray("tags") : ["bất động sản"];
+  const readTime = extractNum("readTime");
+
+  if (!title) {
+    throw new Error(
+      "Không parse được response Groq. Raw: " + rawText.slice(0, 300)
+    );
+  }
+
+  return { title, summary, content, tags, readTime };
 }
 
 // ─── STEP 4: LƯU BÀI VIẾT ─────────────────────────────────────────────────
