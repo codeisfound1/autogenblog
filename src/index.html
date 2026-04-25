@@ -1,242 +1,802 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Blog - Real Estate News</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BĐS Insight AI – Blog Bất Động Sản</title>
+  <meta name="description" content="Blog bất động sản chuyên sâu được phân tích bởi AI từ các nguồn uy tín"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    :root {
+      --ink: #1a1208;
+      --paper: #f5f0e8;
+      --cream: #ede8dc;
+      --gold: #c8973a;
+      --gold-light: #e8c06a;
+      --rust: #8b3a1a;
+      --sage: #5a6b52;
+      --text: #2d2416;
+      --muted: #7a6e5e;
+      --border: #d4c9b0;
+      --card-bg: #faf7f1;
+      --shadow: 0 2px 20px rgba(26,18,8,0.08);
     }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'DM Sans', sans-serif;
+      background: var(--paper);
+      color: var(--text);
       min-height: 100vh;
-      padding: 20px;
+      font-size: 16px;
+      line-height: 1.7;
     }
 
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
+    /* ── HEADER ── */
     header {
-      text-align: center;
-      color: white;
-      margin-bottom: 40px;
+      background: var(--ink);
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 2px solid var(--gold);
     }
 
-    header h1 {
-      font-size: 2.5em;
-      margin-bottom: 10px;
-    }
-
-    .controls {
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
       display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
       gap: 10px;
-      margin-bottom: 30px;
-      flex-wrap: wrap;
+      text-decoration: none;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      background: var(--gold);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
       justify-content: center;
-    }
-
-    button {
-      background: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 1em;
-      cursor: pointer;
-      transition: all 0.3s ease;
+      font-family: 'Cormorant Garamond', serif;
       font-weight: 600;
-      color: #667eea;
+      font-size: 18px;
+      color: var(--ink);
+      flex-shrink: 0;
     }
 
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    .logo-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--paper);
+      letter-spacing: 0.02em;
     }
 
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
+    .logo-text span { color: var(--gold); }
+
+    nav { display: flex; align-items: center; gap: 8px; }
+
+    .nav-btn {
+      background: transparent;
+      border: 1px solid rgba(200,151,58,0.3);
+      color: var(--paper);
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .status {
+    .nav-btn:hover { background: rgba(200,151,58,0.15); border-color: var(--gold); }
+    .nav-btn.primary { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+    .nav-btn.primary:hover { background: var(--gold-light); }
+
+    /* ── HERO ── */
+    .hero {
+      background: var(--ink);
+      padding: 72px 24px 80px;
       text-align: center;
-      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(ellipse 60% 80% at 20% 50%, rgba(200,151,58,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 60% at 80% 30%, rgba(139,58,26,0.06) 0%, transparent 50%);
+    }
+
+    .hero-eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
       margin-bottom: 20px;
-      font-size: 0.9em;
-      min-height: 20px;
+      position: relative;
     }
 
-    .posts-container {
+    .hero h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 400;
+      color: var(--paper);
+      line-height: 1.15;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      color: var(--gold);
+    }
+
+    .hero-sub {
+      font-size: 15px;
+      color: rgba(245,240,232,0.6);
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+      font-weight: 300;
+    }
+
+    /* ── MAIN LAYOUT ── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── TOOLBAR ── */
+    .toolbar {
+      padding: 24px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tag-filter {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .tag-filter:hover, .tag-filter.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--ink);
+    }
+
+    .post-count {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── POSTS GRID ── */
+    #posts-grid {
       display: grid;
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 24px;
+      padding: 32px 0;
+      min-height: 300px;
     }
 
+    /* ── POST CARD ── */
     .post-card {
-      background: white;
-      border-radius: 12px;
-      padding: 25px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-      transition: transform 0.3s ease;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+      display: flex;
+      flex-direction: column;
     }
 
     .post-card:hover {
-      transform: translateY(-5px);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(26,18,8,0.12);
+      border-color: var(--gold);
     }
 
-    .post-card h2 {
-      color: #667eea;
+    .card-header {
+      background: linear-gradient(135deg, var(--ink) 0%, #2d1e0a 100%);
+      padding: 24px;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      position: relative;
+    }
+
+    .card-header::after {
+      content: '⬛';
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      font-size: 28px;
+      opacity: 0.08;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
       margin-bottom: 10px;
-      font-size: 1.5em;
+    }
+
+    .card-tag {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+      background: rgba(200,151,58,0.15);
+      padding: 3px 8px;
+      border-radius: 3px;
+    }
+
+    .card-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--paper);
       line-height: 1.3;
     }
 
-    .post-card .meta {
-      color: #999;
-      font-size: 0.85em;
-      margin-bottom: 15px;
-      display: flex;
-      gap: 15px;
-      flex-wrap: wrap;
-    }
+    .card-body { padding: 20px 24px; flex: 1; display: flex; flex-direction: column; }
 
-    .post-card .content {
-      color: #333;
+    .card-summary {
+      font-size: 14px;
+      color: var(--muted);
       line-height: 1.6;
-      margin-bottom: 15px;
+      flex: 1;
+      margin-bottom: 16px;
     }
 
-    .post-card a {
-      display: inline-block;
-      color: #667eea;
-      text-decoration: none;
-      font-weight: 600;
-      margin-top: 10px;
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
     }
 
-    .post-card a:hover {
-      text-decoration: underline;
+    .card-meta {
+      font-size: 12px;
+      color: var(--muted);
     }
 
+    .card-read {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gold);
+    }
+
+    /* ── EMPTY STATE ── */
     .empty-state {
+      grid-column: 1/-1;
       text-align: center;
-      color: white;
-      padding: 40px 20px;
+      padding: 80px 24px;
     }
 
-    .spinner {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      border-top-color: white;
-      animation: spin 1s ease-in-out infinite;
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.4;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .empty-state h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 8px;
     }
 
-    .error {
-      background: #ff6b6b;
-      color: white;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 20px;
+    .empty-state p { font-size: 14px; color: var(--muted); }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(26,18,8,0.7);
+      z-index: 200;
+      padding: 24px;
+      overflow-y: auto;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.open { display: flex; align-items: flex-start; justify-content: center; }
+
+    .modal {
+      background: var(--card-bg);
+      border-radius: 12px;
+      max-width: 760px;
+      width: 100%;
+      margin: auto;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .modal-hero {
+      background: var(--ink);
+      padding: 40px;
+    }
+
+    .modal-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .modal-tag { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); background: rgba(200,151,58,0.15); padding: 4px 10px; border-radius: 4px; }
+
+    .modal-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(24px, 4vw, 36px);
+      font-weight: 600;
+      color: var(--paper);
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .modal-meta { font-size: 13px; color: rgba(245,240,232,0.5); }
+
+    .modal-body { padding: 40px; }
+
+    .modal-summary {
+      font-size: 17px;
+      font-style: italic;
+      color: var(--muted);
+      border-left: 3px solid var(--gold);
+      padding-left: 20px;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    .modal-content h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--ink);
+      margin: 28px 0 12px;
+    }
+
+    .modal-content p { margin-bottom: 14px; font-size: 15px; line-height: 1.8; }
+    .modal-content ul { padding-left: 20px; margin-bottom: 14px; }
+    .modal-content li { margin-bottom: 6px; font-size: 15px; }
+
+    .modal-footer {
+      padding: 20px 40px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .source-link {
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .source-link:hover { color: var(--gold); }
+
+    .close-btn {
+      background: var(--ink);
+      color: var(--paper);
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .close-btn:hover { background: #2d2416; }
+
+    /* ── ADMIN PANEL ── */
+    .admin-panel {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--ink);
+      border: 1px solid var(--gold);
+      border-radius: 12px;
+      padding: 20px;
+      z-index: 150;
+      min-width: 280px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .admin-panel.open { display: block; }
+    .admin-panel h4 { color: var(--gold); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px; }
+
+    .admin-input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(200,151,58,0.3);
+      color: var(--paper);
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 12px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .admin-input:focus { outline: none; border-color: var(--gold); }
+
+    .admin-actions { display: flex; gap: 8px; }
+
+    .admin-run {
+      flex: 1;
+      background: var(--gold);
+      color: var(--ink);
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: background 0.2s;
+    }
+
+    .admin-run:hover { background: var(--gold-light); }
+    .admin-run:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .admin-close-btn {
+      background: transparent;
+      border: 1px solid rgba(200,151,58,0.3);
+      color: var(--paper);
+      padding: 10px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .status-msg {
+      font-size: 12px;
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .status-msg.success { display: block; background: rgba(90,107,82,0.3); color: #a8c49e; }
+    .status-msg.error { display: block; background: rgba(139,58,26,0.3); color: #e8a07a; }
+    .status-msg.loading { display: block; background: rgba(200,151,58,0.15); color: var(--gold); }
+
+    /* ── LOADING SKELETON ── */
+    .skeleton { animation: shimmer 1.5s infinite; }
+    @keyframes shimmer {
+      0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; }
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--ink);
+      color: rgba(245,240,232,0.4);
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 13px;
+      margin-top: 60px;
+      border-top: 1px solid rgba(200,151,58,0.2);
+    }
+
+    footer a { color: var(--gold); text-decoration: none; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .hero { padding: 48px 20px 56px; }
+      .toolbar { flex-direction: column; align-items: flex-start; }
+      #posts-grid { grid-template-columns: 1fr; gap: 16px; }
+      .modal-body, .modal-hero, .modal-footer { padding: 24px 20px; }
+      .admin-panel { left: 16px; right: 16px; bottom: 16px; min-width: unset; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>🏠 Real Estate Blog</h1>
-      <p>AI-powered summaries from VNExpress</p>
-    </header>
 
-    <div class="controls">
-      <button id="generateBtn" onclick="generatePost()">Generate New Post</button>
-      <button id="refreshBtn" onclick="loadPosts()">Refresh Posts</button>
+<!-- ── HEADER ── -->
+<header>
+  <div class="header-inner">
+    <a href="#" class="logo">
+      <div class="logo-mark">B</div>
+      <span class="logo-text">BĐS<span>Insight</span></span>
+    </a>
+    <nav>
+      <button class="nav-btn" onclick="refreshPosts()">↺ Tải lại</button>
+      <button class="nav-btn primary" onclick="toggleAdmin()">⚡ Đăng bài</button>
+    </nav>
+  </div>
+</header>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <p class="hero-eyebrow">✦ Phân tích bởi trí tuệ nhân tạo</p>
+  <h1>Thị trường bất động sản<br><em>qua góc nhìn AI</em></h1>
+  <p class="hero-sub">Mỗi bài viết được tổng hợp và phân tích chuyên sâu từ các nguồn tin tức uy tín nhất.</p>
+</div>
+
+<!-- ── MAIN ── -->
+<main>
+  <div class="container">
+    <div class="toolbar">
+      <div class="toolbar-left" id="tag-filters">
+        <button class="tag-filter active" data-tag="all" onclick="filterByTag('all', this)">Tất cả</button>
+      </div>
+      <span class="post-count" id="post-count"></span>
     </div>
 
-    <div class="status" id="status"></div>
-    <div id="errorContainer"></div>
-
-    <div class="posts-container" id="postsContainer">
-      <div class="empty-state">Loading posts...</div>
+    <div id="posts-grid">
+      <!-- Posts will be rendered here -->
     </div>
   </div>
+</main>
 
-  <script>
-    // Generate a new post (button click)
-    async function generatePost() {
-      const btn = document.getElementById('generateBtn');
-      const status = document.getElementById('status');
-      const errorContainer = document.getElementById('errorContainer');
+<!-- ── POST MODAL ── -->
+<div class="modal-overlay" id="post-modal" onclick="closeModal(event)">
+  <div class="modal" id="modal-content">
+    <!-- Filled by JS -->
+  </div>
+</div>
 
-      btn.disabled = true;
-      status.innerHTML = '<div class="spinner"></div> Generating post...';
-      errorContainer.innerHTML = '';
+<!-- ── ADMIN PANEL ── -->
+<div class="admin-panel" id="admin-panel">
+  <h4>⚡ Đăng bài thủ công</h4>
+  <input type="password" class="admin-input" id="admin-secret" placeholder="Nhập secret key..." />
+  <div class="admin-actions">
+    <button class="admin-run" id="run-btn" onclick="triggerGenerate()">🤖 Tạo bài mới</button>
+    <button class="admin-close-btn" onclick="toggleAdmin()">✕</button>
+  </div>
+  <div class="status-msg" id="status-msg"></div>
+</div>
 
-      try {
-        const response = await fetch('/.netlify/functions/generateBlogPost', {
-          method: 'POST',
-        });
+<!-- ── FOOTER ── -->
+<footer>
+  <p>Nguồn tham khảo: <a href="https://wiki.batdongsan.com.vn/tin-tuc" target="_blank">wiki.batdongsan.com.vn</a> &nbsp;·&nbsp; Được tạo bởi AI &nbsp;·&nbsp; <span id="footer-year"></span></p>
+</footer>
 
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status}`);
-        }
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+let allPosts = [];
+let currentTag = 'all';
 
-        const data = await response.json();
-        status.textContent = '✅ Post generated successfully!';
-        
-        // Reload posts after generation
-        setTimeout(() => loadPosts(), 1000);
-      } catch (error) {
-        errorContainer.innerHTML = `<div class="error">❌ ${error.message}</div>`;
-        status.textContent = '';
-      } finally {
-        btn.disabled = false;
-      }
+// ── INIT ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+  loadPosts();
+});
+
+// ── LOAD POSTS ─────────────────────────────────────────────────────────────
+async function loadPosts() {
+  try {
+    const res = await fetch('./posts.json?t=' + Date.now());
+    const data = await res.json();
+    allPosts = data.posts || [];
+    renderPosts(allPosts);
+    renderTagFilters();
+  } catch (e) {
+    console.error('Error loading posts:', e);
+    renderEmpty('Không tải được bài viết. Hãy thử lại sau.');
+  }
+}
+
+function refreshPosts() { loadPosts(); }
+
+// ── RENDER POSTS ───────────────────────────────────────────────────────────
+function renderPosts(posts) {
+  const grid = document.getElementById('posts-grid');
+  const countEl = document.getElementById('post-count');
+
+  if (!posts.length) {
+    renderEmpty('Chưa có bài viết nào. Nhấn "Đăng bài" để tạo bài đầu tiên!');
+    countEl.textContent = '';
+    return;
+  }
+
+  countEl.textContent = posts.length + ' bài viết';
+  grid.innerHTML = posts.map((post, i) => cardHTML(post, i)).join('');
+}
+
+function cardHTML(post, i) {
+  const date = new Date(post.publishedAt).toLocaleDateString('vi-VN', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+  const tagsHTML = (post.tags || []).slice(0, 2).map(t =>
+    `<span class="card-tag">${escHtml(t)}</span>`
+  ).join('');
+
+  return `
+    <article class="post-card" onclick="openPost('${escAttr(post.id)}')" style="animation-delay:${i*60}ms">
+      <div class="card-header">
+        <div class="card-tags">${tagsHTML}</div>
+        <h2 class="card-title">${escHtml(post.title)}</h2>
+      </div>
+      <div class="card-body">
+        <p class="card-summary">${escHtml(post.summary || '')}</p>
+        <div class="card-footer">
+          <span class="card-meta">${date}</span>
+          <span class="card-read">~${post.readTime || 5} phút đọc →</span>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderEmpty(msg) {
+  document.getElementById('posts-grid').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">🏗️</div>
+      <h3>Chưa có bài viết</h3>
+      <p>${msg}</p>
+    </div>
+  `;
+}
+
+// ── TAG FILTERS ────────────────────────────────────────────────────────────
+function renderTagFilters() {
+  const allTags = new Set();
+  allPosts.forEach(p => (p.tags || []).forEach(t => allTags.add(t)));
+
+  const container = document.getElementById('tag-filters');
+  const existingBtns = Array.from(container.querySelectorAll('[data-tag]:not([data-tag="all"])'));
+  existingBtns.forEach(b => b.remove());
+
+  allTags.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.className = 'tag-filter';
+    btn.dataset.tag = tag;
+    btn.textContent = tag;
+    btn.onclick = () => filterByTag(tag, btn);
+    container.appendChild(btn);
+  });
+}
+
+function filterByTag(tag, btn) {
+  currentTag = tag;
+  document.querySelectorAll('.tag-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const filtered = tag === 'all' ? allPosts : allPosts.filter(p => (p.tags || []).includes(tag));
+  renderPosts(filtered);
+}
+
+// ── MODAL ──────────────────────────────────────────────────────────────────
+function openPost(id) {
+  const post = allPosts.find(p => p.id === id);
+  if (!post) return;
+
+  const date = new Date(post.publishedAt).toLocaleDateString('vi-VN', {
+    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+  const tagsHTML = (post.tags || []).map(t => `<span class="modal-tag">${escHtml(t)}</span>`).join('');
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-hero">
+      <div class="modal-tags">${tagsHTML}</div>
+      <h1 class="modal-title">${escHtml(post.title)}</h1>
+      <p class="modal-meta">Đăng ngày ${date} &nbsp;·&nbsp; ~${post.readTime || 5} phút đọc</p>
+    </div>
+    <div class="modal-body">
+      <p class="modal-summary">${escHtml(post.summary || '')}</p>
+      <div class="modal-content">${post.content || '<p>Nội dung đang được tải...</p>'}</div>
+    </div>
+    <div class="modal-footer">
+      <a class="source-link" href="${escAttr(post.sourceUrl || '#')}" target="_blank" rel="noopener">
+        📰 Xem bài gốc: ${escHtml(post.sourceTitle || 'wiki.batdongsan.com.vn')}
+      </a>
+      <button class="close-btn" onclick="closeModal()">Đóng ✕</button>
+    </div>
+  `;
+
+  document.getElementById('post-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('post-modal')) {
+    document.getElementById('post-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ── ADMIN PANEL ────────────────────────────────────────────────────────────
+function toggleAdmin() {
+  document.getElementById('admin-panel').classList.toggle('open');
+}
+
+async function triggerGenerate() {
+  const secret = document.getElementById('admin-secret').value.trim();
+  const btn = document.getElementById('run-btn');
+  const status = document.getElementById('status-msg');
+
+  if (!secret) {
+    showStatus('error', 'Vui lòng nhập secret key!');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Đang tạo bài...';
+  showStatus('loading', '🤖 Đang crawl và phân tích bài viết mới...');
+
+  try {
+    const res = await fetch('/.netlify/functions/generateBlogPost', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret })
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showStatus('success', '✅ ' + (data.message || 'Đã tạo bài mới thành công!'));
+      setTimeout(() => { loadPosts(); }, 2000);
+    } else {
+      showStatus('error', '❌ ' + (data.error || data.message || 'Có lỗi xảy ra'));
     }
+  } catch (e) {
+    showStatus('error', '❌ Lỗi kết nối: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 Tạo bài mới';
+  }
+}
 
-    // Load and display all posts
-    async function loadPosts() {
-      const container = document.getElementById('postsContainer');
+function showStatus(type, msg) {
+  const el = document.getElementById('status-msg');
+  el.className = 'status-msg ' + type;
+  el.textContent = msg;
+}
 
-      try {
-        const response = await fetch('/posts.json');
-        const posts = await response.json();
-
-        if (!posts || posts.length === 0) {
-          container.innerHTML = '<div class="empty-state">No posts yet. Click "Generate New Post" to start!</div>';
-          return;
-        }
-
-        container.innerHTML = posts.map(post => `
-          <div class="post-card">
-            <h2>${post.title}</h2>
-            <div class="meta">
-              <span>📅 ${new Date(post.createdAt).toLocaleDateString()}</span>
-              <span>📰 ${post.source}</span>
-            </div>
-            <div class="content">${post.rewrittenContent}</div>
-            <a href="${post.originalLink}" target="_blank">Read original article →</a>
-          </div>
-        `).join('');
-      } catch (error) {
-        container.innerHTML = '<div class="empty-state">Could not load posts.</div>';
-      }
-    }
-
-    // Load posts on page load
-    loadPosts();
-  </script>
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(str) {
+  return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+</script>
 </body>
 </html>
