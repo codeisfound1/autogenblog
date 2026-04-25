@@ -9,7 +9,7 @@ const path = require("path");
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const SOURCE_URL = "https://wiki.batdongsan.com.vn/tin-tuc";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama3-70b-8192"; // Free tier model
+const GROQ_MODEL = "llama-3.1-8b-instant"; // Free tier model
 const POSTS_FILE = path.join(__dirname, "../../src/posts.json");
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
