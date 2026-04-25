@@ -1,37 +1,27 @@
-const Parser = require('rss-parser');
 const fetch = require('node-fetch');
+const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
-const parser = new Parser({
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-  }
-});
-//const parser = new Parser();
-//const RSS_FEED = 'https://vnexpress.net/rss/bat-dong-san.rss';
-const RSS_FEED = 'https://dantri.com.vn/rss/bat-dong-san.rss';
+
+const BLOG_URL = 'https://wiki.batdongsan.com.vn/tin-tuc';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = 'mixtral-8x7b-32768'; // Fast & accurate
+const GROQ_MODEL = 'mixtral-8x7b-32768';
 
 exports.handler = async (event) => {
   try {
-    // Parse RSS feed
-    const feed = await parser.parseURL(RSS_FEED);
-    const latestArticle = feed.items[0];
+    // Scrape bài viết mới nhất từ URL
+    const { title, link, summary } = await scrapeBlogPost();
 
-    if (!latestArticle) {
+    if (!title) {
       return {
         statusCode: 404,
-        body: JSON.stringify({ error: 'No articles found' }),
+        body: JSON.stringify({ error: 'Could not find article on the page' }),
       };
     }
 
-    // Extract content
-    const title = latestArticle.title;
-    const link = latestArticle.link;
-    const summary = latestArticle.contentSnippet || latestArticle.summary;
+    console.log('Found article:', title);
 
-    // Call Groq API to rewrite summary
+    // Rewrite content với Groq
     const rewrittenSummary = await callGroqAPI(summary);
 
     // Create blog post object
@@ -42,7 +32,7 @@ exports.handler = async (event) => {
       originalSummary: summary,
       rewrittenContent: rewrittenSummary,
       createdAt: new Date().toISOString(),
-      source: 'vnexpress.net',
+      source: 'batdongsan.com.vn',
     };
 
     // Load existing posts
@@ -52,6 +42,18 @@ exports.handler = async (event) => {
     if (fs.existsSync(postsFilePath)) {
       const fileContent = fs.readFileSync(postsFilePath, 'utf8');
       posts = JSON.parse(fileContent);
+    }
+
+    // Kiểm tra không trùng lặp bài viết
+    const isDuplicate = posts.some(p => p.title === title);
+    if (isDuplicate) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: false,
+          message: 'Article already exists',
+        }),
+      };
     }
 
     // Add new post (keep last 50)
@@ -78,7 +80,54 @@ exports.handler = async (event) => {
   }
 };
 
-// Call Groq API to rewrite content
+// Scrape bài viết từ website
+async function scrapeBlogPost() {
+  try {
+    const response = await fetch(BLOG_URL, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    // Tìm div với class "HomeHighlights_articleRightContent__JKbTW"
+    const articleDiv = $('div.HomeHighlights_articleRightContent__JKbTW').first();
+    
+    if (!articleDiv.length) {
+      throw new Error('Article container not found');
+    }
+
+    // Lấy tiêu đề từ link hoặc heading trong div
+    const titleElement = articleDiv.find('h2, h3, a').first();
+    const title = titleElement.text().trim();
+
+    // Lấy link bài viết
+    const linkElement = articleDiv.find('a').first();
+    let link = linkElement.attr('href') || '';
+    
+    // Convert relative URL to absolute URL nếu cần
+    if (link.startsWith('/')) {
+      link = 'https://wiki.batdongsan.com.vn' + link;
+    }
+
+    // Lấy summary/description
+    const summaryElement = articleDiv.find('p, span').first();
+    const summary = summaryElement.text().trim() || title;
+
+    return {
+      title: title || 'No title found',
+      link: link,
+      summary: summary || title,
+    };
+  } catch (error) {
+    console.error('Scraping error:', error);
+    throw error;
+  }
+}
+
+// Call Groq API
 async function callGroqAPI(text) {
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -92,7 +141,7 @@ async function callGroqAPI(text) {
         messages: [
           {
             role: 'system',
-            content: 'You are a professional blog writer. Rewrite the given text in a clear, engaging way. Keep it 150-200 words.',
+            content: 'You are a professional blog writer. Rewrite the given text in a clear, engaging way. Keep it 150-200 words. Write in Vietnamese.',
           },
           {
             role: 'user',
@@ -113,6 +162,6 @@ async function callGroqAPI(text) {
     return result.choices[0].message.content;
   } catch (error) {
     console.error('Groq error:', error);
-    return text; // Fallback to original if API fails
+    return text;
   }
 }
