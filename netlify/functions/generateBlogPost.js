@@ -14,6 +14,11 @@ const BLOB_KEY = "posts-data";
 
 async function getStore() {
   const { getStore } = await import("@netlify/blobs");
+  const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
+  const token  = process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY_AUTH_TOKEN;
+  if (siteID && token) {
+    return getStore({ name: "blog", siteID, token });
+  }
   return getStore("blog");
 }
 
@@ -31,7 +36,7 @@ async function loadPosts() {
 async function savePosts(data) {
   const store = await getStore();
   await store.set(BLOB_KEY, JSON.stringify(data));
-  console.log("💾 Đã lưu " + data.posts.length + " bài viết vào Netlify Blobs");
+  console.log("Saved " + data.posts.length + " posts to Netlify Blobs");
 }
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
