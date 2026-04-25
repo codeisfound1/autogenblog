@@ -5,7 +5,20 @@ const path = require('path');
  
 const BLOG_URL = 'https://wiki.batdongsan.com.vn/tin-tuc';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = 'mixtral-8x7b-32768';
+const GROQ_MODEL = 'llama-3.1-8b-instant';
+
+//import Groq from "groq-sdk";
+
+//const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+//const getModels = async () => {
+//  return await groq.models.list();
+//};
+
+//getModels().then((models) => {
+  // console.log(models);
+//});
+
  
 // Constants
 const MAX_RETRIES = 3;
