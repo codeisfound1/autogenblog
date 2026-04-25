@@ -610,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── LOAD POSTS ─────────────────────────────────────────────────────────────
 async function loadPosts() {
   try {
-    const res = await fetch('./posts.json?t=' + Date.now());
+    const res = await fetch('/.netlify/functions/getPosts?t=' + Date.now());
     const data = await res.json();
     allPosts = data.posts || [];
     renderPosts(allPosts);
